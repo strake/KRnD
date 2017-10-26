@@ -6,11 +6,9 @@ using UnityEngine;
 using KSP.IO;
 using KSP;
 
-namespace KRnD
-{
+namespace KRnD {
     [KSPModule("R&D")]
-    public class KRnDModule : PartModule
-    {
+    public class KRnDModule : PartModule {
         // Version of this part (just for show):
         [KSPField(guiActive = true, guiName = "R&D", guiUnits = "", guiFormat = "", isPersistant = false)]
         public String moduleVersion;
@@ -181,8 +179,7 @@ namespace KRnD
         [KSPField(isPersistant = false)]
         public float fuelCapacity_improvementScale = 1f;
 
-        public static String ToRoman(int number)
-        {
+        public static String ToRoman(int number) {
             if (number == 0) return "";
             if (number >= 1000) return "M" + ToRoman(number - 1000);
             if (number >= 900) return "CM" + ToRoman(number - 900);
@@ -200,8 +197,7 @@ namespace KRnD
             return number.ToString();
         }
 
-        public String getVersion()
-        {
+        public String getVersion() {
             int upgrades =
                 this.dryMass_upgrades +
                 this.fuelFlow_upgrades +
@@ -220,22 +216,17 @@ namespace KRnD
             return "Mk " + ToRoman(upgrades + 1); // Mk I is the part without upgrades, Mk II the first upgraded version.
         }
 
-        public override void OnStart(PartModule.StartState state)
-        {
+        public override void OnStart(PartModule.StartState state) {
             this.moduleVersion = getVersion();
-            if (this.moduleVersion == "")
-            {
+            if (this.moduleVersion == "") {
                 this.Fields[0].guiActive = false;
-            }
-            else
-            {
+            } else {
                 this.Fields[0].guiActive = true;
             }
         }
 
         // Returns the upgrade-stats which this module represents.
-        public KRnDUpgrade getCurrentUpgrades()
-        {
+        public KRnDUpgrade getCurrentUpgrades() {
             KRnDUpgrade upgrades = new KRnDUpgrade();
             upgrades.dryMass = this.dryMass_upgrades;
             upgrades.fuelFlow = this.fuelFlow_upgrades;
