@@ -218,11 +218,7 @@ namespace KRnD {
 
         public override void OnStart(PartModule.StartState state) {
             this.moduleVersion = getVersion();
-            if (this.moduleVersion == "") {
-                this.Fields[0].guiActive = false;
-            } else {
-                this.Fields[0].guiActive = true;
-            }
+            this.Fields[0].guiActive = "" != this.moduleVersion;
         }
 
         // Returns the upgrade-stats which this module represents.

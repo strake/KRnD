@@ -292,18 +292,18 @@ namespace KRnD {
 
                 // Upgrade the part to get the correct info, we revert it back to its previous values in the finally block below:
                 KRnD.updatePart(part, upgradesToApply);
-                List<ModuleEngines> engineModules = KRnD.getEngineModules(part);
-                ModuleRCS rcsModule = KRnD.getRcsModule(part);
-                ModuleReactionWheel reactionWheelModule = KRnD.getReactionWheelModule(part);
-                ModuleDeployableSolarPanel solarPanelModule = KRnD.getSolarPanelModule(part);
-                ModuleWheelBase landingLegModule = KRnD.getLandingLegModule(part);
-                PartResource electricChargeResource = KRnD.getChargeResource(part);
-                ModuleGenerator generatorModule = KRnD.getGeneratorModule(part);
-                PartModule fissionGenerator = KRnD.getFissionGeneratorModule(part);
-                List<ModuleResourceConverter> converterModules = KRnD.getConverterModules(part);
-                ModuleParachute parachuteModule = KRnD.getParachuteModule(part);
-                ModuleProceduralFairing fairingModule = KRnD.getFairingModule(part);
-                List<PartResource> fuelResources = KRnD.getFuelResources(part);
+                var engineModules = KRnD.getPartModules<ModuleEngines>(part);
+                var rcsModule = KRnD.getPartModule<ModuleRCS>(part);
+                var reactionWheelModule = KRnD.getPartModule<ModuleReactionWheel>(part);
+                var solarPanelModule = KRnD.getPartModule<ModuleDeployableSolarPanel>(part);
+                var landingLegModule = KRnD.getLandingLegModule(part);
+                var electricChargeResource = KRnD.getChargeResource(part);
+                var generatorModule = KRnD.getPartModule<ModuleGenerator>(part);
+                var fissionGenerator = KRnD.getFissionGeneratorModule(part);
+                var converterModules = KRnD.getPartModules<ModuleResourceConverter>(part);
+                var parachuteModule = KRnD.getPartModule<ModuleParachute>(part);
+                var fairingModule = KRnD.getPartModule<ModuleProceduralFairing>(part);
+                var fuelResources = KRnD.getFuelResources(part);
 
                 // Basic stats:
                 info = "<color=#FFFFFF><b>Dry Mass:</b> "+ part.mass.ToString("0.#### t") +"\n";
@@ -323,13 +323,11 @@ namespace KRnD {
 
                 // Module stats:
                 info += "\n";
-                if (engineModules != null) {
-                    foreach (ModuleEngines engineModule in engineModules) {
-                        info += "<color=#99FF00><b>Engine";
-                        if (engineModules.Count > 1) info += " ("+engineModule.engineID.ToString()+")";
-                        info += ":</b></color>\n" + engineModule.GetInfo();
-                        if (engineModules.Count > 1) info += "\n";
-                    }
+                foreach (ModuleEngines engineModule in engineModules) {
+                    info += "<color=#99FF00><b>Engine";
+                    if (engineModules.Count > 1) info += " ("+engineModule.engineID.ToString()+")";
+                    info += ":</b></color>\n" + engineModule.GetInfo();
+                    if (engineModules.Count > 1) info += "\n";
                 }
                 if (rcsModule) info += "<color=#99FF00><b>RCS:</b></color>\n" + rcsModule.GetInfo();
                 if (reactionWheelModule) info += "<color=#99FF00><b>Reaction Wheel:</b></color>\n" + reactionWheelModule.GetInfo();
@@ -409,16 +407,16 @@ namespace KRnD {
                     }
                     if (part) {
                         rndModule = KRnD.getKRnDModule(part);
-                        engineModules = KRnD.getEngineModules(part);
-                        rcsModule = KRnD.getRcsModule(part);
-                        reactionWheelModule = KRnD.getReactionWheelModule(part);
-                        solarPanelModule = KRnD.getSolarPanelModule(part);
+                        engineModules = KRnD.getPartModules<ModuleEngines>(part);
+                        rcsModule = KRnD.getPartModule<ModuleRCS>(part);
+                        reactionWheelModule = KRnD.getPartModule<ModuleReactionWheel>(part);
+                        solarPanelModule = KRnD.getPartModule<ModuleDeployableSolarPanel>(part);
                         landingLegModule = KRnD.getLandingLegModule(part);
                         electricChargeResource = KRnD.getChargeResource(part);
-                        generatorModule = KRnD.getGeneratorModule(part);
+                        generatorModule = KRnD.getPartModule<ModuleGenerator>(part);
                         fissionGenerator = KRnD.getFissionGeneratorModule(part);
-                        converterModules = KRnD.getConverterModules(part);
-                        parachuteModule = KRnD.getParachuteModule(part);
+                        converterModules = KRnD.getPartModules<ModuleResourceConverter>(part);
+                        parachuteModule = KRnD.getPartModule<ModuleParachute>(part);
                         fuelResources = KRnD.getFuelResources(part);
                     }
                 }

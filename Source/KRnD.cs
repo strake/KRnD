@@ -96,23 +96,7 @@ namespace KRnD {
             return upgrade;
         }
 
-        public KRnDUpgrade clone() {
-            KRnDUpgrade copy = new KRnDUpgrade();
-            copy.ispVac = this.ispVac;
-            copy.ispAtm = this.ispAtm;
-            copy.dryMass = this.dryMass;
-            copy.fuelFlow = this.fuelFlow;
-            copy.torque = this.torque;
-            copy.chargeRate = this.chargeRate;
-            copy.crashTolerance = this.crashTolerance;
-            copy.batteryCharge = this.batteryCharge;
-            copy.generatorEfficiency = this.generatorEfficiency;
-            copy.converterEfficiency = this.converterEfficiency;
-            copy.parachuteStrength = this.parachuteStrength;
-            copy.maxTemperature = this.maxTemperature;
-            copy.fuelCapacity = this.fuelCapacity;
-            return copy;
-        }
+        public KRnDUpgrade clone() => (KRnDUpgrade)this.MemberwiseClone();
     }
 
     // This class is used to store all relevant base-stats of a part used to calculate all other stats with
@@ -141,9 +125,9 @@ namespace KRnD {
             this.intMaxTemp = part.maxTemp;
 
             // There should only be one or the other, engines or RCS:
-            List<ModuleEngines> engineModules = KRnD.getEngineModules(part);
-            ModuleRCS rcsModule = KRnD.getRcsModule(part);
-            if (engineModules != null) {
+            var engineModules = KRnD.getPartModules<ModuleEngines>(part);
+            var rcsModule = KRnD.getPartModule<ModuleRCS>(part);
+            if (0 < engineModules.Count) {
                 this.maxFuelFlows = new List<float>();
                 this.atmosphereCurves = new List<FloatCurve>();
 
@@ -170,12 +154,12 @@ namespace KRnD {
                 this.atmosphereCurves.Add(atmosphereCurve);
             }
 
-            ModuleReactionWheel reactionWheel = KRnD.getReactionWheelModule(part);
+            var reactionWheel = KRnD.getPartModule<ModuleReactionWheel>(part);
             if (reactionWheel) {
                 this.torque = reactionWheel.RollTorque; // There is also pitch- and yaw-torque, but they should all be the same
             }
 
-            ModuleDeployableSolarPanel solarPanel = KRnD.getSolarPanelModule(part);
+            var solarPanel = KRnD.getPartModule<ModuleDeployableSolarPanel>(part);
             if (solarPanel) {
                 this.chargeRate = solarPanel.chargeRate;
             }
@@ -190,7 +174,7 @@ namespace KRnD {
                 this.batteryCharge = electricCharge.maxAmount;
             }
 
-            ModuleGenerator generator = KRnD.getGeneratorModule(part);
+            var generator = KRnD.getPartModule<ModuleGenerator>(part);
             if (generator != null) {
                 generatorEfficiency = new Dictionary<String, double>();
                 foreach (ModuleResource outputResource in generator.resHandler.outputResources) {
@@ -204,24 +188,22 @@ namespace KRnD {
             }
 
             // There might be different converter-modules in the same part with different names (eg for Fuel, Monopropellant, etc):
-            List<ModuleResourceConverter> converterList = KRnD.getConverterModules(part);
-            if (converterList != null) {
-                converterEfficiency = new Dictionary<String, Dictionary<String, double>>();
-                foreach (ModuleResourceConverter converter in converterList) {
-                    Dictionary<String, double> thisConverterEfficiency = new Dictionary<String, double>();
-                    foreach (ResourceRatio resourceRatio in converter.outputList) {
-                        thisConverterEfficiency.Add(resourceRatio.ResourceName, resourceRatio.Ratio);
-                    }
-                    converterEfficiency.Add(converter.ConverterName, thisConverterEfficiency);
+            var converterList = KRnD.getPartModules<ModuleResourceConverter>(part);
+            if (0 < converterList.Count) converterEfficiency = new Dictionary<String, Dictionary<String, double>>();
+            foreach (ModuleResourceConverter converter in converterList) {
+                Dictionary<String, double> thisConverterEfficiency = new Dictionary<String, double>();
+                foreach (ResourceRatio resourceRatio in converter.outputList) {
+                    thisConverterEfficiency.Add(resourceRatio.ResourceName, resourceRatio.Ratio);
                 }
+                converterEfficiency.Add(converter.ConverterName, thisConverterEfficiency);
             }
 
-            ModuleParachute parachute = KRnD.getParachuteModule(part);
+            var parachute = KRnD.getPartModule<ModuleParachute>(part);
             if (parachute) {
                 this.chuteMaxTemp = parachute.chuteMaxTemp;
             }
 
-            ModuleProceduralFairing fairing = KRnD.getFairingModule(part);
+            var fairing = KRnD.getPartModule<ModuleProceduralFairing>(part);
             if (fairing) {
                 this.fairingAreaMass = fairing.UnitAreaMass;
             }
@@ -290,49 +272,25 @@ namespace KRnD {
             return null;
         }
 
-        // Multi-Mode engines have multiple Engine-Modules which we return as a list.
-        public static List<ModuleEngines> getEngineModules(Part part) {
-            List<ModuleEngines> engines = new List<ModuleEngines>();
-            foreach (PartModule partModule in part.Modules) {
-                if (partModule.moduleName == "ModuleEngines" || partModule.moduleName == "ModuleEnginesFX") {
-                    engines.Add((ModuleEngines)partModule);
+
+        public static List<T> getPartModules<T>(Part part) where T: PartModule => getPartModules<T>(part, m => true);
+        public static List<T> getPartModules<T>(Part part, Func<T, bool> p) where T: PartModule {
+            var ms = new List<T>();
+            foreach (var m in part.Modules) {
+                if (typeof(T).FullName == Regex.Replace(m.moduleName, @"FX$", "") && p((T)m)) {
+                    ms.Add((T)m);
                 }
             }
-            if (engines.Count > 0) return engines;
-            return null;
+            return ms;
         }
 
-        public static ModuleRCS getRcsModule(Part part) {
-            foreach (PartModule partModule in part.Modules) {
-                if (partModule.moduleName == "ModuleRCS" || partModule.moduleName == "ModuleRCSFX") return (ModuleRCS)partModule;
-            }
-            return null;
+        public static T getPartModule<T>(Part part) where T: PartModule => getPartModule<T>(part, m => true);
+        public static T getPartModule<T>(Part part, Func<T, bool> p) where T: PartModule {
+            var ms = getPartModules<T>(part, p);
+            return ms.Count > 0 ? ms[0] : null;
         }
 
-        public static ModuleReactionWheel getReactionWheelModule(Part part) {
-            foreach (PartModule partModule in part.Modules) {
-                if (partModule.moduleName == "ModuleReactionWheel") return (ModuleReactionWheel)partModule;
-            }
-            return null;
-        }
-
-        public static ModuleDeployableSolarPanel getSolarPanelModule(Part part) {
-            foreach (PartModule partModule in part.Modules) {
-                if (partModule.moduleName == "ModuleDeployableSolarPanel") return (ModuleDeployableSolarPanel)partModule;
-            }
-            return null;
-        }
-
-        public static ModuleWheelBase getLandingLegModule(Part part) {
-            ModuleWheelBase wheelBase = null;
-            foreach (PartModule partModule in part.Modules) {
-                if (partModule.moduleName == "ModuleWheelBase") {
-                    wheelBase = (ModuleWheelBase)partModule;
-                    if (wheelBase.wheelType == WheelType.LEG) return wheelBase;
-                }
-            }
-            return null;
-        }
+        public static ModuleWheelBase getLandingLegModule(Part part) => getPartModule<ModuleWheelBase>(part, wheelBase => WheelType.LEG == wheelBase.wheelType);
 
         public static PartResource getChargeResource(Part part) {
             if (part.Resources == null) return null;
@@ -353,40 +311,10 @@ namespace KRnD {
             return partFuels;
         }
 
-        public static ModuleGenerator getGeneratorModule(Part part) {
-            foreach (PartModule partModule in part.Modules) {
-                if (partModule.moduleName == "ModuleGenerator") return (ModuleGenerator)partModule;
-            }
-            return null;
-        }
-
         public static PartModule getFissionGeneratorModule(Part part) {
             foreach (PartModule partModule in part.Modules) {
                 // We are only interested in "FissionGenerator" with the tunable attribute "PowerGeneration":
                 if (partModule.moduleName == "FissionGenerator" && KRnD.hasGenericModuleField(partModule, "PowerGeneration")) return partModule;
-            }
-            return null;
-        }
-
-        public static List<ModuleResourceConverter> getConverterModules(Part part) {
-            List<ModuleResourceConverter> converters = new List<ModuleResourceConverter>();
-            foreach (PartModule partModule in part.Modules) {
-                if (partModule.moduleName == "ModuleResourceConverter") converters.Add((ModuleResourceConverter)partModule);
-            }
-            if (converters.Count == 0) return null;
-            return converters;
-        }
-
-        public static ModuleParachute getParachuteModule(Part part) {
-            foreach (PartModule partModule in part.Modules) {
-                if (partModule.moduleName == "ModuleParachute") return (ModuleParachute)partModule;
-            }
-            return null;
-        }
-
-        public static ModuleProceduralFairing getFairingModule(Part part) {
-            foreach (PartModule partModule in part.Modules) {
-                if (partModule.moduleName == "ModuleProceduralFairing") return (ModuleProceduralFairing)partModule;
             }
             return null;
         }
@@ -442,21 +370,21 @@ namespace KRnD {
                         int engineModuleNumber = 0; // There might be multiple modules of this type
                         foreach (AvailablePart.ModuleInfo info in part.moduleInfos) {
                             if (info.moduleName.ToLower() == "engine") {
-                                List<ModuleEngines> engines = KRnD.getEngineModules(part.partPrefab);
-                                if (engines != null && engines.Count > 0) {
+                                var engines = KRnD.getPartModules<ModuleEngines>(part.partPrefab);
+                                if (engines.Count > 0) {
                                     ModuleEngines engine = engines[engineModuleNumber];
                                     info.info = engine.GetInfo();
                                     info.primaryInfo = engine.GetPrimaryField();
                                     engineModuleNumber++;
                                 }
                             } else if (info.moduleName.ToLower() == "rcs") {
-                                ModuleRCS rcs = KRnD.getRcsModule(part.partPrefab);
+                                var rcs = KRnD.getPartModule<ModuleRCS>(part.partPrefab);
                                 if (rcs) info.info = rcs.GetInfo();
                             } else if (info.moduleName.ToLower() == "reaction wheel") {
-                                ModuleReactionWheel reactionWheel = KRnD.getReactionWheelModule(part.partPrefab);
+                                var reactionWheel = KRnD.getPartModule<ModuleReactionWheel>(part.partPrefab);
                                 if (reactionWheel) info.info = reactionWheel.GetInfo();
                             } else if (info.moduleName.ToLower() == "deployable solar panel") {
-                                ModuleDeployableSolarPanel solarPanel = KRnD.getSolarPanelModule(part.partPrefab);
+                                var solarPanel = KRnD.getPartModule<ModuleDeployableSolarPanel>(part.partPrefab);
                                 if (solarPanel) info.info = KRnD.getSolarPanelInfo(solarPanel);
                             } else if (info.moduleName.ToLower() == "landing leg") {
                                 ModuleWheelBase landingLeg = KRnD.getLandingLegModule(part.partPrefab);
@@ -465,20 +393,20 @@ namespace KRnD {
                                 PartModule fissionGenerator = KRnD.getFissionGeneratorModule(part.partPrefab);
                                 if (fissionGenerator) info.info = fissionGenerator.GetInfo();
                             } else if (info.moduleName.ToLower() == "generator") {
-                                ModuleGenerator generator = KRnD.getGeneratorModule(part.partPrefab);
+                                var generator = KRnD.getPartModule<ModuleGenerator>(part.partPrefab);
                                 if (generator) info.info = generator.GetInfo();
                             } else if (info.moduleName.ToLower() == "resource converter") {
-                                List<ModuleResourceConverter> converterList = KRnD.getConverterModules(part.partPrefab);
+                                var converterList = KRnD.getPartModules<ModuleResourceConverter>(part.partPrefab);
                                 if (converterList != null && converterList.Count > 0) {
                                     ModuleResourceConverter converter = converterList[converterModuleNumber];
                                     info.info = converter.GetInfo();
                                     converterModuleNumber++;
                                 }
                             } else if (info.moduleName.ToLower() == "parachute") {
-                                ModuleParachute parachute = KRnD.getParachuteModule(part.partPrefab);
+                                var parachute = KRnD.getPartModule<ModuleParachute>(part.partPrefab);
                                 if (parachute) info.info = parachute.GetInfo();
                             } else if (info.moduleName.ToLower() == "custom-built fairing") {
-                                ModuleProceduralFairing fairing = KRnD.getFairingModule(part.partPrefab);
+                                var fairing = KRnD.getPartModule<ModuleProceduralFairing>(part.partPrefab);
                                 if (fairing) info.info = fairing.GetInfo();
                             }
                         }
@@ -582,7 +510,7 @@ namespace KRnD {
                 part.prefabMass = part.mass; // New in ksp 1.1, if this is correct is just guesswork however...
 
                 // Dry Mass also improves fairing mass:
-                ModuleProceduralFairing fairngModule = KRnD.getFairingModule(part);
+                var fairngModule = KRnD.getPartModule<ModuleProceduralFairing>(part);
                 if (fairngModule) {
                     fairngModule.UnitAreaMass = originalStats.fairingAreaMass * dryMassFactor;
                 }
@@ -594,9 +522,9 @@ namespace KRnD {
                 part.maxTemp = originalStats.intMaxTemp * tempFactor;
 
                 // Fuel Flow:
-                List<ModuleEngines> engineModules = KRnD.getEngineModules(part);
-                ModuleRCS rcsModule = KRnD.getRcsModule(part);
-                if (engineModules != null || rcsModule) {
+                var engineModules = KRnD.getPartModules<ModuleEngines>(part);
+                var rcsModule = KRnD.getPartModule<ModuleRCS>(part);
+                if (0 < engineModules.Count || rcsModule) {
                     rndModule.fuelFlow_upgrades = upgradesToApply.fuelFlow;
                     for (int i = 0; i < originalStats.maxFuelFlows.Count; i++) {
                         float maxFuelFlow = originalStats.maxFuelFlows[i] * (1 + KRnD.calculateImprovementFactor(rndModule.fuelFlow_improvement, rndModule.fuelFlow_improvementScale, upgradesToApply.fuelFlow));
@@ -608,7 +536,7 @@ namespace KRnD {
                 }
 
                 // ISP Vac & Atm:
-                if (engineModules != null || rcsModule) {
+                if (0 < engineModules.Count || rcsModule) {
                     rndModule.ispVac_upgrades = upgradesToApply.ispVac;
                     rndModule.ispAtm_upgrades = upgradesToApply.ispAtm;
                     float improvementFactorVac = 1 + KRnD.calculateImprovementFactor(rndModule.ispVac_improvement, rndModule.ispVac_improvementScale, upgradesToApply.ispVac);
@@ -641,7 +569,7 @@ namespace KRnD {
                 }
 
                 // Torque:
-                ModuleReactionWheel reactionWheel = KRnD.getReactionWheelModule(part);
+                ModuleReactionWheel reactionWheel = KRnD.getPartModule<ModuleReactionWheel>(part);
                 if (reactionWheel) {
                     rndModule.torque_upgrades = upgradesToApply.torque;
                     float torque = originalStats.torque * (1 + KRnD.calculateImprovementFactor(rndModule.torque_improvement, rndModule.torque_improvementScale, upgradesToApply.torque));
@@ -653,7 +581,7 @@ namespace KRnD {
                 }
 
                 // Charge Rate:
-                ModuleDeployableSolarPanel solarPanel = KRnD.getSolarPanelModule(part);
+                var solarPanel = KRnD.getPartModule<ModuleDeployableSolarPanel>(part);
                 if (solarPanel) {
                     rndModule.chargeRate_upgrades = upgradesToApply.chargeRate;
                     float chargeEfficiency = (1 + KRnD.calculateImprovementFactor(rndModule.chargeRate_improvement, rndModule.chargeRate_improvementScale, upgradesToApply.chargeRate));
@@ -693,7 +621,7 @@ namespace KRnD {
                 }
 
                 // Generator & Fission-Generator Efficiency:
-                ModuleGenerator generator = KRnD.getGeneratorModule(part);
+                ModuleGenerator generator = KRnD.getPartModule<ModuleGenerator>(part);
                 PartModule fissionGenerator = KRnD.getFissionGeneratorModule(part);
                 if (generator || fissionGenerator) {
                     rndModule.generatorEfficiency_upgrades = upgradesToApply.generatorEfficiency;
@@ -715,28 +643,25 @@ namespace KRnD {
                 }
 
                 // Converter Efficiency:
-                List<ModuleResourceConverter> converterList = KRnD.getConverterModules(part);
-                if (converterList != null) {
-                    foreach (ModuleResourceConverter converter in converterList) {
-                        Dictionary<String, double> origiginalOutputResources;
-                        if (!originalStats.converterEfficiency.TryGetValue(converter.ConverterName, out origiginalOutputResources)) continue;
+                rndModule.converterEfficiency_upgrades = 0;
+                var converterList = KRnD.getPartModules<ModuleResourceConverter>(part);
+                foreach (ModuleResourceConverter converter in converterList) {
+                    Dictionary<String, double> origiginalOutputResources;
+                    if (!originalStats.converterEfficiency.TryGetValue(converter.ConverterName, out origiginalOutputResources)) continue;
 
-                        rndModule.converterEfficiency_upgrades = upgradesToApply.converterEfficiency;
-                        // Since KSP 1.2 this can't be done in a foreach anymore, we have to read and write back the entire ResourceRatio-Object:
-                        for (int i=0; i< converter.outputList.Count; i++) {
-                            ResourceRatio resourceRatio = converter.outputList[i];
-                            double originalRatio;
-                            if (!origiginalOutputResources.TryGetValue(resourceRatio.ResourceName, out originalRatio)) continue;
-                            resourceRatio.Ratio = (float)(originalRatio * (1 + KRnD.calculateImprovementFactor(rndModule.converterEfficiency_improvement, rndModule.converterEfficiency_improvementScale, upgradesToApply.converterEfficiency)));
-                            converter.outputList[i] = resourceRatio;
-                        }
+                    rndModule.converterEfficiency_upgrades = upgradesToApply.converterEfficiency;
+                    // Since KSP 1.2 this can't be done in a foreach anymore, we have to read and write back the entire ResourceRatio-Object:
+                    for (int i=0; i< converter.outputList.Count; i++) {
+                        ResourceRatio resourceRatio = converter.outputList[i];
+                        double originalRatio;
+                        if (!origiginalOutputResources.TryGetValue(resourceRatio.ResourceName, out originalRatio)) continue;
+                        resourceRatio.Ratio = (float)(originalRatio * (1 + KRnD.calculateImprovementFactor(rndModule.converterEfficiency_improvement, rndModule.converterEfficiency_improvementScale, upgradesToApply.converterEfficiency)));
+                        converter.outputList[i] = resourceRatio;
                     }
-                } else {
-                    rndModule.converterEfficiency_upgrades = 0;
                 }
 
                 // Parachute Strength:
-                ModuleParachute parachute = KRnD.getParachuteModule(part);
+                ModuleParachute parachute = KRnD.getPartModule<ModuleParachute>(part);
                 if (parachute) {
                     rndModule.parachuteStrength_upgrades = upgradesToApply.parachuteStrength;
                     double chuteMaxTemp = originalStats.chuteMaxTemp * (1 + KRnD.calculateImprovementFactor(rndModule.parachuteStrength_improvement, rndModule.parachuteStrength_improvementScale, upgradesToApply.parachuteStrength));
@@ -862,10 +787,8 @@ namespace KRnD {
                     KRnD.fuelResources.Add("MonoPropellant"); // Always use MonoPropellant as fuel (RCS-Thrusters don't have engine modules and are not found with the code below)
 
                     foreach (AvailablePart aPart in PartLoader.LoadedPartsList) {
-                        Part part = aPart.partPrefab;
-                        List<ModuleEngines> engineModules = KRnD.getEngineModules(part);
-                        if (engineModules == null) continue;
-                        foreach (ModuleEngines engineModule in engineModules) {
+                        var engineModules = KRnD.getPartModules<ModuleEngines>(aPart.partPrefab);
+                        foreach (var engineModule in engineModules) {
                             if (engineModule.propellants == null) continue;
                             foreach (Propellant propellant in engineModule.propellants) {
                                 if (propellant.name == "ElectricCharge") continue; // Electric Charge is improved by batteries.
