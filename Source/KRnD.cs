@@ -319,26 +319,20 @@ namespace KRnD {
             return null;
         }
 
-        public static float calculateImprovementFactor(float baseImprovement, float improvementScale, int upgrades) {
-            float factor = 0;
-            if (upgrades < 0) upgrades = 0;
-            for (int i = 0; i < upgrades; i++) {
-                if (i == 0) factor += baseImprovement;
-                else factor += baseImprovement * (float)Math.Pow(improvementScale, i-1);
-            }
-            if (baseImprovement < 0 && factor < -0.9) factor = -0.9f;
-            return (float) Math.Round(factor, 4);
+        public static float calculateImprovementFactor(float baseImprovement, float improvementScale, int n) {
+            return (float)(Math.Pow(1 + baseImprovement, n) * Math.Pow(improvementScale, n*(n+1)/2));
         }
 
-        public static int calculateScienceCost(int baseCost, float costScale, int upgrades) {
-            float cost = 0;
-            if (upgrades < 0) upgrades = 0;
-            for (int i = 0; i < upgrades; i++) {
-                if (i == 0) cost = baseCost;
-                else cost += baseCost * (float) Math.Pow(costScale, i-1);
+        public static int calculateScienceCost(int baseCost, float costScale, int n) {
+            double a = (Math.Pow(costScale, n) - 1)/(costScale - 1);
+            if (a == a) {
+                double cost = a * (double)baseCost;
+                return (cost > int.MaxValue) ? int.MaxValue // Cap at signed 32 bit int
+                                             : (int)Math.Round(cost);
+            } else {
+                int cost = baseCost * n;
+                return n > 0 && cost/n != baseCost ? int.MaxValue : cost;
             }
-            if (cost > 2147483647) return 2147483647; // Cap at signed 32 bit int
-            return (int) Math.Round(cost);
         }
 
         // Since KSP 1.1 the info-text of solar panels is not updated correctly, so we have use this workaround-function
@@ -505,7 +499,7 @@ namespace KRnD {
 
                 // Dry Mass:
                 rndModule.dryMass_upgrades = upgradesToApply.dryMass;
-                float dryMassFactor = 1 + KRnD.calculateImprovementFactor(rndModule.dryMass_improvement, rndModule.dryMass_improvementScale, upgradesToApply.dryMass);
+                float dryMassFactor = KRnD.calculateImprovementFactor(rndModule.dryMass_improvement, rndModule.dryMass_improvementScale, upgradesToApply.dryMass);
                 part.mass = originalStats.mass * dryMassFactor;
                 part.prefabMass = part.mass; // New in ksp 1.1, if this is correct is just guesswork however...
 
@@ -517,7 +511,7 @@ namespace KRnD {
 
                 // Max Int/Skin Temp:
                 rndModule.maxTemperature_upgrades = upgradesToApply.maxTemperature;
-                double tempFactor = (1 + KRnD.calculateImprovementFactor(rndModule.maxTemperature_improvement, rndModule.maxTemperature_improvementScale, upgradesToApply.maxTemperature));
+                double tempFactor = KRnD.calculateImprovementFactor(rndModule.maxTemperature_improvement, rndModule.maxTemperature_improvementScale, upgradesToApply.maxTemperature);
                 part.skinMaxTemp = originalStats.skinMaxTemp * tempFactor;
                 part.maxTemp = originalStats.intMaxTemp * tempFactor;
 
@@ -527,7 +521,7 @@ namespace KRnD {
                 if (0 < engineModules.Count || rcsModule) {
                     rndModule.fuelFlow_upgrades = upgradesToApply.fuelFlow;
                     for (int i = 0; i < originalStats.maxFuelFlows.Count; i++) {
-                        float maxFuelFlow = originalStats.maxFuelFlows[i] * (1 + KRnD.calculateImprovementFactor(rndModule.fuelFlow_improvement, rndModule.fuelFlow_improvementScale, upgradesToApply.fuelFlow));
+                        float maxFuelFlow = originalStats.maxFuelFlows[i] * KRnD.calculateImprovementFactor(rndModule.fuelFlow_improvement, rndModule.fuelFlow_improvementScale, upgradesToApply.fuelFlow);
                         if (engineModules != null) engineModules[i].maxFuelFlow = maxFuelFlow;
                         else if (rcsModule) rcsModule.thrusterPower = maxFuelFlow; // There is only one rcs-module
                     }
@@ -539,8 +533,8 @@ namespace KRnD {
                 if (0 < engineModules.Count || rcsModule) {
                     rndModule.ispVac_upgrades = upgradesToApply.ispVac;
                     rndModule.ispAtm_upgrades = upgradesToApply.ispAtm;
-                    float improvementFactorVac = 1 + KRnD.calculateImprovementFactor(rndModule.ispVac_improvement, rndModule.ispVac_improvementScale, upgradesToApply.ispVac);
-                    float improvementFactorAtm = 1 + KRnD.calculateImprovementFactor(rndModule.ispAtm_improvement, rndModule.ispAtm_improvementScale, upgradesToApply.ispAtm);
+                    float improvementFactorVac = KRnD.calculateImprovementFactor(rndModule.ispVac_improvement, rndModule.ispVac_improvementScale, upgradesToApply.ispVac);
+                    float improvementFactorAtm = KRnD.calculateImprovementFactor(rndModule.ispAtm_improvement, rndModule.ispAtm_improvementScale, upgradesToApply.ispAtm);
 
                     for (int i = 0; i < originalStats.atmosphereCurves.Count ; i++) {
                         bool isAirbreather = false;
@@ -572,7 +566,7 @@ namespace KRnD {
                 ModuleReactionWheel reactionWheel = KRnD.getPartModule<ModuleReactionWheel>(part);
                 if (reactionWheel) {
                     rndModule.torque_upgrades = upgradesToApply.torque;
-                    float torque = originalStats.torque * (1 + KRnD.calculateImprovementFactor(rndModule.torque_improvement, rndModule.torque_improvementScale, upgradesToApply.torque));
+                    float torque = originalStats.torque * KRnD.calculateImprovementFactor(rndModule.torque_improvement, rndModule.torque_improvementScale, upgradesToApply.torque);
                     reactionWheel.PitchTorque = torque;
                     reactionWheel.YawTorque = torque;
                     reactionWheel.RollTorque = torque;
@@ -584,7 +578,7 @@ namespace KRnD {
                 var solarPanel = KRnD.getPartModule<ModuleDeployableSolarPanel>(part);
                 if (solarPanel) {
                     rndModule.chargeRate_upgrades = upgradesToApply.chargeRate;
-                    float chargeEfficiency = (1 + KRnD.calculateImprovementFactor(rndModule.chargeRate_improvement, rndModule.chargeRate_improvementScale, upgradesToApply.chargeRate));
+                    float chargeEfficiency = KRnD.calculateImprovementFactor(rndModule.chargeRate_improvement, rndModule.chargeRate_improvementScale, upgradesToApply.chargeRate);
                     // Somehow changing the charge-rate stopped working in KSP 1.1, so we use the efficiency instead. This however does not
                     // show up in the module-info (probably a bug in KSP), which is why we have another workaround to update the info-texts.
                     // float chargeRate = originalStats.chargeRate * chargeEfficiency;
@@ -598,7 +592,7 @@ namespace KRnD {
                 ModuleWheelBase landingLeg = KRnD.getLandingLegModule(part);
                 if (landingLeg) {
                     rndModule.crashTolerance_upgrades = upgradesToApply.crashTolerance;
-                    float crashTolerance = originalStats.crashTolerance * (1 + KRnD.calculateImprovementFactor(rndModule.crashTolerance_improvement, rndModule.crashTolerance_improvementScale, upgradesToApply.crashTolerance));
+                    float crashTolerance = originalStats.crashTolerance * KRnD.calculateImprovementFactor(rndModule.crashTolerance_improvement, rndModule.crashTolerance_improvementScale, upgradesToApply.crashTolerance);
                     part.crashTolerance = crashTolerance;
                 } else {
                     rndModule.crashTolerance_upgrades = 0;
@@ -608,7 +602,7 @@ namespace KRnD {
                 PartResource electricCharge = KRnD.getChargeResource(part);
                 if (electricCharge != null) {
                     rndModule.batteryCharge_upgrades = upgradesToApply.batteryCharge;
-                    double batteryCharge = originalStats.batteryCharge * (1 + KRnD.calculateImprovementFactor(rndModule.batteryCharge_improvement, rndModule.batteryCharge_improvementScale, upgradesToApply.batteryCharge));
+                    double batteryCharge = originalStats.batteryCharge * KRnD.calculateImprovementFactor(rndModule.batteryCharge_improvement, rndModule.batteryCharge_improvementScale, upgradesToApply.batteryCharge);
                     batteryCharge = Math.Round(batteryCharge); // We don't want half units of electric charge
 
                     bool batteryIsFull = false;
@@ -630,12 +624,12 @@ namespace KRnD {
                         foreach (ModuleResource outputResource in generator.resHandler.outputResources) {
                             double originalRate;
                             if (!originalStats.generatorEfficiency.TryGetValue(outputResource.name, out originalRate)) continue;
-                            outputResource.rate = (float)(originalRate * (1 + KRnD.calculateImprovementFactor(rndModule.generatorEfficiency_improvement, rndModule.generatorEfficiency_improvementScale, upgradesToApply.generatorEfficiency)));
+                            outputResource.rate = (float)(originalRate * KRnD.calculateImprovementFactor(rndModule.generatorEfficiency_improvement, rndModule.generatorEfficiency_improvementScale, upgradesToApply.generatorEfficiency));
                         }
                     }
 
                     if (fissionGenerator) {
-                        double powerGeneration = (double)(originalStats.fissionPowerGeneration * (1 + KRnD.calculateImprovementFactor(rndModule.generatorEfficiency_improvement, rndModule.generatorEfficiency_improvementScale, upgradesToApply.generatorEfficiency)));
+                        double powerGeneration = (double)(originalStats.fissionPowerGeneration * KRnD.calculateImprovementFactor(rndModule.generatorEfficiency_improvement, rndModule.generatorEfficiency_improvementScale, upgradesToApply.generatorEfficiency));
                         KRnD.setGenericModuleValue(fissionGenerator, "PowerGeneration", powerGeneration);
                     }
                 } else {
@@ -655,7 +649,7 @@ namespace KRnD {
                         ResourceRatio resourceRatio = converter.outputList[i];
                         double originalRatio;
                         if (!origiginalOutputResources.TryGetValue(resourceRatio.ResourceName, out originalRatio)) continue;
-                        resourceRatio.Ratio = (float)(originalRatio * (1 + KRnD.calculateImprovementFactor(rndModule.converterEfficiency_improvement, rndModule.converterEfficiency_improvementScale, upgradesToApply.converterEfficiency)));
+                        resourceRatio.Ratio = (float)(originalRatio * KRnD.calculateImprovementFactor(rndModule.converterEfficiency_improvement, rndModule.converterEfficiency_improvementScale, upgradesToApply.converterEfficiency));
                         converter.outputList[i] = resourceRatio;
                     }
                 }
@@ -664,7 +658,7 @@ namespace KRnD {
                 ModuleParachute parachute = KRnD.getPartModule<ModuleParachute>(part);
                 if (parachute) {
                     rndModule.parachuteStrength_upgrades = upgradesToApply.parachuteStrength;
-                    double chuteMaxTemp = originalStats.chuteMaxTemp * (1 + KRnD.calculateImprovementFactor(rndModule.parachuteStrength_improvement, rndModule.parachuteStrength_improvementScale, upgradesToApply.parachuteStrength));
+                    double chuteMaxTemp = originalStats.chuteMaxTemp * KRnD.calculateImprovementFactor(rndModule.parachuteStrength_improvement, rndModule.parachuteStrength_improvementScale, upgradesToApply.parachuteStrength);
                     parachute.chuteMaxTemp = chuteMaxTemp; // The safe deployment-speed is derived from the temperature
                 } else {
                     rndModule.parachuteStrength_upgrades = 0;
@@ -674,7 +668,7 @@ namespace KRnD {
                 List<PartResource> fuelResources = KRnD.getFuelResources(part);
                 if (fuelResources != null && originalStats.fuelCapacities != null) {
                     rndModule.fuelCapacity_upgrades = upgradesToApply.fuelCapacity;
-                    double improvementFactor = (1 + KRnD.calculateImprovementFactor(rndModule.fuelCapacity_improvement, rndModule.fuelCapacity_improvementScale, upgradesToApply.fuelCapacity));
+                    double improvementFactor = KRnD.calculateImprovementFactor(rndModule.fuelCapacity_improvement, rndModule.fuelCapacity_improvementScale, upgradesToApply.fuelCapacity);
 
                     foreach (PartResource fuelResource in fuelResources) {
                         if (!originalStats.fuelCapacities.ContainsKey(fuelResource.resourceName)) continue;
